@@ -6,6 +6,393 @@ import sys
 import getopt
 import pickle
 import datetime
+import astropy
+from astropy import coordinates
+import sidereal
+#import wx
+
+# Classes for the objects
+
+class Observatory:
+    """Class to define a ground-based observatory (i.e. a location, elevation, and timezone on the Earth)"""
+    def __init__(self, name):
+        name = name.lower()
+        self.name = name
+        # Lat-long coordinates shamelessly stolen from wikipedia
+        if( name=='lco'):  # In honor of FIRE
+            self.full_name = "Las Campanas Observatory"
+            self.lat = coordinates.angles.Angle(-29.0146, unit="degree") # in decimal degrees, - is S, + is N
+            self.long = coordinates.angles.Angle(-70.6926, unit="degree") # in decimal degrees, + is E, - is W
+            self.timezone = Timezone(-240.0)
+            #self.long = 4.0 + 42.0/60.0 + 47.9/3600.0 # in decimal hours (positive is West)
+            #self.lst2curr = 4.0 + 16.0/60.0 + 7.0/3600.0  # value added to lst to get current local time (hrs)
+            self.altitude = 2282.0
+        elif(name=='kpno' or name=="kittpeak"):
+            self.full_name = "Kitt Peak National Observatory"
+            self.lat = 31.9583
+            self.long = 111.5967
+            self.altitude = 2120.0
+        elif(name=='ctio'):
+            self.full_name = "Cerro Tololo Interamerican Observatory"
+            self.lat = 30.1652
+            self.long = 70.815
+            self.altitude = 2215.0
+        elif(name=='eso' or name=='lso'):
+            self.full_name = "European Southern Observatory - La Silla"
+            self.lat = -29.2612
+            self.long = 70.7313
+            self.altitude = 2347.0
+        elif(name=='lick'): # Try not to throw up on your way up to Mt. Hamilton.
+            self.full_name = "Lick Observatory"
+            self.lat = 37.3414
+            self.long = 121.6428
+            self.altitude = 1290.0
+        elif(name=='mmto'):
+            self.full_name = "MMT Observatory"
+            self.lat = 31.9583
+            self.long = 111.5967
+            self.altitude = 2600.0
+        ## elif(name=='cfht'):
+        ## elif(name=='lapalma'):
+        ## elif(name=='mso'):
+        ## elif(name=='sso'):
+        ## elif(name=='aao'):
+        ## elif(name=='mcdonald'):
+        ## elif(name=='mtbigelow'):
+        ## elif(name=='dao'):
+        ## elif(name=='spm'):
+        ## elif(name=='tona'):
+        ## elif(name=='palomar'):
+        ## elif(name=='mdm'):
+        ## elif(name=='nov'):
+        ## elif(name=='bmo'):
+        ## elif(name=='bao'):
+        ## elif(name=='keck'):
+        ## elif(name=='ekar'):
+        ## elif(name=='apo'):
+        ## elif(name=='lowell'):
+        ## elif(name=='vbo'):
+        ## elif(name=='flwo'):
+        ## elif(name=='oro'):
+        ## elif(name=='lna'):
+        ## elif(name=='saao'):
+        ## elif(name=='casleo'):
+        ## elif(name=='bosque'):
+        ## elif(name=='rozhen'):
+        ## elif(name=='irtf'):
+        ## elif(name=='bgsuo'):
+        ## elif(name=='ca'):
+        ## elif(name=='holi'):
+        ## elif(name=='lmo'):
+        ## elif(name=='fmo'):
+        ## elif(name=='whitin'):
+        ## elif(name=='mgio'):    
+            
+        else:
+            print 'Bad observatory name (%s) entered.  Aborting...\n' % (name)
+            sys.exit(2)
+#self.timezone = Timezone(self.long.degrees * 4.0)
+#self.sidereal = SiderealTime(self.long.degrees * 4.0)
+           
+ #           if UToffset is not None:
+ #               self.UT2curr = float(UToffset)
+ #           else:
+ #               self.UT2curr = calc_UToff( day[0], day[1], day[2] ) # value added to UT to get current local time (hrs)             #   
+ #               print "  pyro.py() Offset between UT and local time not given with -U or --UToff.  Assuming that UT + (%d hrs) = local time." % ( self.UT2curr )
+ #           self.ut2lst = calc_UT2lst( day[0], day[1], day[2], 0.0, self.long ) # value added to UT to get lst
+ #           self.lst2curr = calc_lst2curr( day[0], day[1], day[2], 0.0, self.UT2curr, self.long )
+ 
+    def details(self):
+        print '  Observatory details:\n\tName = %s\n\tLat (decimal degrees) = %f\n\tLong (decimal degrees) = %f\n\tTimezone:%s\n' % (self.full_name, self.lat, self.long, self.timezone.utcoffset())
+
+
+class Telescope:
+    """Class to define a specific telescope at an observatory. Will eventually be used to get more accurate exposure times, slew constraints, etc. For now, unused."""
+
+
+class Timezone(datetime.tzinfo):
+    """Class to provide timezone information to datetime."""
+    def __init__(self, offset):
+        print "Offset:", offset
+        self.offset = datetime.timedelta(seconds=int(offset)*60.0)
+
+    def utcoffset(self, dt):
+        """Return the offset from UTC in minutes."""
+        return self.offset
+
+    def dst(self, dt):
+        return datetime.timedelta(0)
+
+
+#class SiderealTime(datetime.tzinfo):
+#    """Converts between sidereal and solar times at a given location. Abstracts sidereal time as a new 'timezone' for the datetime object."""
+#    def __init__(self, offset):
+#        self.utcoff = datetime.timedelta(seconds=int(offset)*60.0)
+#
+#    def utcoffset(self, dt):
+#        print "Hour:", dt.hour
+#        """Return the offset from UTC in minutes."""
+#        julian_date = 367*dt.year - int(7.0*(dt.year+int((dt.month+9)/12))/4) + int(275*dt.month/9) + dt.day + 1721013.5 + dt.hour/24.0 # Assumes UTC date
+#        d = julian_date - 2451545.0 # Decimal days since J2000.0
+#        
+#  # Calculate the Greenwich Mean Sidereal Time in degrees
+#        GMST_deg = (280.46061837 + 360.98564736629*d) % 360.0
+#        GMST = datetime.timedelta(seconds=GMST_deg*4.0*60.0)
+#        #LST = GMST/15.0 * 60.0 - self.utcoff
+#        #delta = datetime.timedelta(seconds = datetimeint(GMST*4.0)*60.0 - self.utcoff.seconds)
+#        delta = dt - GMST
+#        print "Sidereal:", julian_date, d, GMST, GMST_deg, delta
+#        return delta
+#        #return self.utcoff+self.dst(dt)
+#
+#    
+#    def dst(self, dt):
+#        return datetime.timedelta(0)
+
+#    def dst(self, dt):  # This is actually the conversion from solar to sidereal time.
+#        #correction = dt.timetuple().tm_yday * 0.98333333 # Number of degrees sidereal lags solar on this date
+#        #delta = timedelta(seconds=correction/15.0 * 3600.0)
+#        julian_date = 367*dt.year - int(7.0*(dt.year+int((dt.month+9)/12))/4) + int(275*dt.month/9) + dt.day + 1721013.5 + dt.hour/24.0 # Assumes UTC date
+#        d = julian_date - 2451545.0 # Decimal days since J2000.0
+#        
+#  # Calculate the Greenwich Mean Sidereal Time in degrees
+#        GMST = (280.46061837 + 360.98564736629*d) % 360.0
+#        LST = GMST/15.0 * 60.0 - self.utcoff
+#        delta = datetime.timedelta(seconds = int(LST)*60.0)
+#         ## d0 = jd0 - 2451545.0
+        ## t = d/36525.0
+        ## LST_deg = dt.hour*15.0 + dt.minute*0.25 + dt.second*(0.25/60.0)
+    
+        ## gmst = 6.697374558 + 0.06570982441908*d + 1.00273790935*(d.utcoffset()/60.0) + 0.000026*t
+
+        ## correction_deg = (280.46061837 + 360.98564736629*d) % 360.0
+        ## correction = correction_deg/15.0 * 60.0
+        ## hours, min_sec = divmod(correction, 60.0)
+        ## minutes, seconds = divmod(correction, 1.0)
+        ## seconds = seconds * 60.0
+        ## delta = timedelta(seconds=correction*60.0)
+## return delta
+    
+    ## def fromutc(self, dt):
+    ##     julian_date = 367*dt.year - int(7.0*(dt.year+int((dt.month+9)/12))/4) + int(275*dt.month/9) + dt.day + 1721013.5 + dt.hour/24.0 # Assumes UTC date
+    ##     d = julian_date - 2451545.0 # Decimal days since J2000.0
+        
+    ##     # Calculate the Greenwich Mean Sidereal Time in degrees
+    ##     GMST = (280.46061837 + 360.98564736629*d) % 360.0
+    ##     LST = GMST/15.0 * 60.0 - self.utcoffset
+    ##     hours, min_sec = divmod(LST, 60.0)
+    ##     minutes, seconds = divmod(min_sec, 1.0)
+    ##     seconds = seconds * 60.0
+    ##     dt.replace(hour=hours, minute=minutes, second=seconds)
+        
+    ##     return dt
+        
+
+class Target:
+    """Class to define an observation target."""
+    def __init__(self, label, name, z, mag, coordinates, weight, exp):
+        self.label = label
+        self.name = name
+        self.z = z
+        self.mag = mag
+        self.mag_band = None
+        self.mag2 = -1.0
+        self.mag_band2 = None
+        self.coordinates = coordinates
+        #self.ra = ra
+        #self.dec = dec
+        self.sptype = None
+        self.weight = weight
+
+        # Absolute rising and setting properties of the source (not modified for the observation window)
+        self.rise_time = datetime.datetime.today()
+        self.set_time = datetime.datetime.today()
+        self.real_used = -1.0
+
+        # Rise and set times modified for airmass constraints
+        self.am_rise_time = datetime.datetime.today()
+        self.am_set_time = datetime.datetime.today()
+        self.am_vis = 0
+
+        self.exp = exp # seconds
+        self.start_observation = datetime.datetime.today()  # Elapsed time (in minutes) when observation starts.  To be filled in by scheduler
+        self.end_observation = datetime.datetime.today()    # Elapsed time (in minutes) when observation finishes.  To be filled in by scheduler
+        self.night_start = datetime.datetime.today() # Local time (hhmm) of the start of the full night's observation run (not just this source)
+        self.night_end = datetime.datetime.today() #  Local time (hhmm) of the end of the full night's observation run (not just this source)
+        self.airmass = -1 # Estimated airmass at the central scan time.
+
+        # Special scheduling properties
+        self.priority = False # Is the object a major priority? (input with -P) 
+        self.exclude = False # Exclude source from schedule (for example, if it's too close to the Moon)
+        self.excl_reason = "N/A" # The reason for excluding this object
+
+        # Telluric properties
+        self.num_tells = 0 # Number of tellurics found for this source
+        self.tell_slots = 0 # Number of time slots to devote to tellurics
+        self.tellurics = list()     # List of nearby telluric stars.  Don't fill this in until object is scheduled (time matters)
+        self.tell_comp_vals = 0 # If this object is a target (ie, not a telluric), these describe how well its tellurics match it
+
+        # Other
+        self.moon_angle = -1.0 # Angle between this target and the Moon
+
+        self.scheduled_id = "-1"      # ID in the telescope operator's catalogue.  Not filled in until object is scheduled
+
+        # Prints out the details of all the information stored in the target structure
+    def details(self):
+        output = "\n  Details for source %s (object type = %s)\n" % ( self.name, self.label )
+        output += "  ****************************************************\n"
+
+        output += "  General Properties:"
+        output += "    Right Ascension = %f hrs\n" % ( self.ra )
+        output += "    Declination = %f degrees\n" % ( self.dec )
+        output += "    Angular distance from Moon (in degrees) = "
+        if self.moon_angle < 0.0:
+            output += " unknown (use -M or --Moon to turn on Moon option)\n"
+        else:
+            output += "%2.2f degrees\n" % (self.moon_angle)
+        output += "    Redshift = "
+        if self.z < 0.0:
+            output += "unknown\n"
+        else:
+            output += "%2.2f\n" % ( self.z )
+        output += "    Magnitude = "
+        if self.mag <= 0.0:
+            output += "unknown\n"
+        else:
+            output += "%2.2f (band = " % ( self.mag )
+        if self.mag_band is None:
+            output += "unknown)\n"
+        else:
+            output += "%s)\n" % ( self.mag_band )
+        output += "    Magnitude (2nd band) = "
+        if self.mag2 <= 0.0:
+            output += "unknown\n"
+        else:
+            output += "%2.2f (band = " % ( self.mag2 )
+        if self.mag_band2 is None:
+            output += "unknown)\n"
+        else:
+            output += "%s)\n" % ( self.mag_band2 )
+        output += "    Required exposure time = %3.2f secs\n" % ( self.exp )
+
+        output += "  Airmass properties:\n"
+        output += "    Airmass used for rising/setting times = "
+        if self.real_am_used < 0.0:
+            output += "unknown\n"
+        else:
+            output += "%2.2f\n" % ( self.real_am_used )
+        output += "    Rising time = "
+        if self.real_am_rise < 0:
+            output += "unknown\n"
+        else:
+            output += "%d (hhmm)\n" % ( self.real_am_rise )
+        output += "    Setting time = "
+        if self.real_am_set < 0:
+            output += "unknown\n"
+        else:
+            output += "%d (hhmm)\n" % ( self.real_am_set )
+
+        output += "  Observation details (general):\n"
+        output += "    Start of night's observation = %d (hhmm)\n" % ( self.night_start )
+        output += "    End of night's observation = %d (hhmm)\n" % ( self.night_end )
+
+        output += "  Observation details (specific to target):\n"
+        output += "    Target's scheduling weight: %4.3f\n" % ( self.weight )
+        output += "    Is this target a priority (ie, input with -P or --Priority flag)? %s\n" % ( boolean2yesno( self.priority ) )
+        output += "    Is this target automatically excluded? %s (Reason: %s)\n" % ( boolean2yesno( self.exclude ), self.excl_reason )
+        output += "    Airmass rise time (modified by observation window) = %d (hhmm)\n" % ( self.am_rise )
+        output += "    Airmass set time (modified by observation window) = %d (hhmm)\n" % ( self.am_set )
+        output += "    Total time up within observation window = "
+        if self.am_vis==-1:
+            output += "never up\n"
+        else:
+            output += "%d\n" % ( self.am_vis )
+        output += "    Number of time slots set aside for telluric observation = %d\n" % ( self.tell_slots )
+        output += "    Scheduled observation start time = %d (hhmm after observation start)\n" % ( self.start_observation )
+        output += "    Scheduled observation end time = %d (hhmm after observation start)\n" % ( self.end_observation )
+
+        output += "  Properties of matched tellurics:\n"
+        output += "    Number of tellurics found for this source = %d\n" % ( self.num_tells )
+        if self.num_tells > 0:
+            output += "    Information on best  matched tellurics (and comparison values):\n"
+         #for tell_num in range(0,self.num_tells):
+         #    output += self.telluric_catalog_entry(tell_num)
+        output += "    ****************************************************"
+        output += self.tell_details()
+        output += "    ****************************************************\n"
+
+        return output
+
+    def tell_details(self):
+
+        if self.num_tells==0:
+            output = "\n %s: Didn't try to find tellurics for this object.\n" % (self.name)
+        else:
+            tcv = self.tell_comp_vals[0]
+        output = "\n  %s:  RA= %s, Dec= %s  airmass= %4.3f at lst %s\n" % (self.name, dechrs2hhmmss(self.ra,True), deg2degmmss(self.dec,True), tcv.src_am, dechrs2hhmmss(tcv.src_time, True))
+        output += "    Best telluric matches:\n"
+        for tell_num in range(0, len(self.tellurics)):
+            output += self.tell_details1(tell_num)
+
+        return output
+
+    def tell_details1(self, tell_num):
+        tell = self.tellurics[tell_num]
+        tcv = self.tell_comp_vals[tell_num]
+        output  = "      (%d): %s\n" % ( tell_num+1, tell.name )
+        ra = dechrs2hhmmss(tell.ra, True)
+        dec = deg2degmmss(tell.dec, True)
+        output += "          Mag= %3.2f " % ( tell.mag )
+        if tell.mag_band is not None:
+            output += "(Band= %s)" % ( tell.mag_band )
+        else:
+            output += "(Band = Unknown)"
+        output += "  RA= %s  Dec= %s  Anguler Offset= %2.2f deg\n" % (ra, dec, tcv.dphi)
+        output += "          This telluric: airmass = %4.3f at lst %s    airmass diff from source = %4.3f.  Match rating = %4.2f\n" % (tcv.tell_am, dechrs2hhmmss(tcv.tell_time, True), tcv.da, tcv.rating)
+
+        return output
+
+# Return a string containing a line formatted for a Magellan telescope operator's catalog.  comment=Boolean: write a comment column?
+    def catalog_entry(self, comment):
+        seconds = (self.ra % 1) * 3600.0
+        ra = "%02d:%02d:%04.1f" % (int(math.floor(self.ra)), int(math.floor(seconds/60)), seconds % 60)
+
+        if str(self.dec)[0] == "-":
+            sign = "-"
+        else:
+            sign = "+"
+        seconds = (abs(self.dec) % 1) * 3600.0
+        dec = sign + "%02d:%02d:%04.1f" % (int(math.floor(abs(self.dec))), int(math.floor(seconds/60)), seconds % 60)
+
+        entry = self.scheduled_id + "    "
+        entry += str(self.name).ljust(25, " ")
+        entry += ra + "    "
+        entry += dec + "    "
+        entry += "2000.0 0.0 0.0 -0.2 HRZ 00:00:00 00:00:00 2000.0 00:00:00 00:00:00 2000.0	"
+        if comment == True:
+            if self.z is None:
+                z_str = "N/A"
+            else:
+                z_str = "%4.2f" % self.z
+            comment = "%s;z=%s;weight=%5.3f;exp=%5.1f\n" % (self.label,z_str,self.weight,self.exp)
+            entry += comment
+        return entry
+
+    def telluric_catalog_entry(self, tell_num):
+
+        tcv = self.tell_comp_vals[tell_num]
+        entry = self.tellurics[tell_num].catalog_entry(False)
+        if self.tellurics[tell_num].mag_band2 is not None:
+                if self.tellurics[tell_num].mag2 is not None:
+                        comment = "Tell;da=%4.2f;dphi=%4.2f;%s=%3.2f;%s=%3.2f;score=%4.2f\n" % (tcv.da, tcv.dphi, self.tellurics[tell_num].mag_band, self.tellurics[tell_num].mag, self.tellurics[tell_num].mag_band2, self.tellurics[tell_num].mag2, tcv.rating)
+                else:
+                        comment = "Tell;da=%4.2f;dphi=%4.2f;%s=%3.2f;%s=?;score=%4.2f\n" % (tcv.da, tcv.dphi, self.tellurics[tell_num].mag_band, self.tellurics[tell_num].mag, self.tellurics[tell_num].mag_band2, tcv.rating)
+        else:
+                comment = "Tell;da=%4.2f;dphi=%4.2f;%s=%3.2f;score=%4.2f\n" % (tcv.da, tcv.dphi, self.tellurics[tell_num].mag_band, self.tellurics[tell_num].mag, tcv.rating)
+        entry += comment
+
+        return entry
+
 
 # Class for comparing tellurics to targets
 class tell_comp_vals:
@@ -25,239 +412,80 @@ class tell_comp_vals:
 
 
 # Class which controls the output/print-to-screen levels of the program
-class Output_Level:
-    def __init__(self, loud_Moon, loud_scheduler, loud_priority):
-        self.Moon = loud_Moon # Boolean: print to screen information on the Moon (location, sources proximity to it)
+class OutputLevel:
+    def __init__(self, loud_moon, loud_scheduler, loud_priority):
+        self.moon = loud_moon # Boolean: print to screen information on the Moon (location, sources proximity to it) ( http://wondermark.com/302 )
         self.scheduler = loud_scheduler # Boolean: print to screen information on the scheduling
         self.priority = loud_priority # Boolean: print to screen information on priority-targets
 
-# Class for a telescope/site
-
-class tscope:
-    def __init__( self, name, UToffset, day ):
-        self.name = name
-        if( name=='LCO'):
-            self.lat = -1.0*(29.0 + 0.0/60.0 + 30.0/3600.0) # in decimal degrees
-            self.long = 4.0 + 42.0/60.0 + 47.9/3600.0 # in decimal hours (positive is West)
-            self.lst2curr = 4.0 + 16.0/60.0 + 7.0/3600.0  # value added to lst to get current local time (hrs)
-            if UToffset is not None:
-                self.UT2curr = float(UToffset)
-            else:
-                self.UT2curr = calc_UToff( day[0], day[1], day[2] ) # value added to UT to get current local time (hrs)                
-                print "  pyro.py() Offset between UT and local time not given with -U or --UToff.  Assuming that UT + (%d hrs) = local time." % ( self.UT2curr )
-            self.ut2lst = calc_UT2lst( day[0], day[1], day[2], 0.0, self.long ) # value added to UT to get lst
-            self.lst2curr = calc_lst2curr( day[0], day[1], day[2], 0.0, self.UT2curr, self.long )
-        else:
-            print 'Bad tscope name (%s) entered.  Aborting...\n' % (name)
-            sys.exit(2)
-
-    def details(self):
-        print '  telescope  details:\n    name = %s\n    lat (decimal degrees) = %f\n    long (decimal hrs) = %f\n    lst + x = current time; x = %f hrs\n' % (self.name, self.lat, self.long, self.lst2curr)
 
 
-# Class for a target object
+# Classes for the GUI
 
-class Target:
-	def __init__(self, label, name, z, mag, ra, dec, weight, exp):
-		self.label = label
-		self.name = name
-		self.z = z
-		self.mag = mag
-		self.mag_band = None
-		self.mag2 = -1.0
-		self.mag_band2 = None
-		self.ra = ra
-		self.dec = dec
-		self.sptype = None
-		self.weight = weight
+## class MainWindow(wx.Frame):
 
-		# Absolute rising and setting properties of the source (not modified for the observation window)
-		self.real_am_rise = -1
-		self.real_am_set = -1
-		self.real_am_used = -1.0
+##     def __init__(self, parent, id, title):
+##         wx.Frame.__init__(self, parent, id, title, size=(1024, 768))
+##         self.CreateStatusBar()
 
-		self.am_rise = -1
-		self.am_set = -1
-		self.am_vis = 0
-		self.exp = exp # seconds
-		self.start_observation = 0  # Elapsed time (in minutes) when observation starts.  To be filled in by scheduler
-		self.end_observation = 0    # Elapsed time (in minutes) when observation finishes.  To be filled in by scheduler
-		self.night_start = 0 # Local time (hhmm) of the start of the full night's observation run (not just this source)
-		self.night_end = 0 #  Local time (hhmm) of the end of the full night's observation run (not just this source)
-		self.airmass = -1 # Estimated airmass at the central scan time.
+##         filemenu = wx.Menu()
+##         #filemenu.Append(wx.ID_ABOUT, "&About", " Information about this program")
+##         #filemenu.AppendSeparator()
+##         menu_exit = filemenu.Append(wx.ID_EXIT, "E&xit")
+##         menu_open = filemenu.Append(wx.ID_OPEN, "&Open")
 
-		# Special scheduling properties
-		self.priority = False # Is the object a major priority? (input with -P) 
-		self.exclude = False # Exclude source from schedule (for example, if it's too close to the Moon)
-		self.excl_reason = "N/A" # The reason for excluding this object
+##         self.Bind(wx.EVT_MENU, self.OnOpen, menu_open)
+##         self.Bind(wx.EVT_MENU, self.OnExit, menu_exit)
 
-		# Telluric properties
-		self.num_tells = 0 # Number of tellurics found for this source
-		self.tell_slots = 0 # Number of time slots to devote to tellurics
-		self.tellurics = list()     # List of nearby telluric stars.  Don't fill this in until object is scheduled (time matters)
-		self.tell_comp_vals = 0 # If this object is a target (ie, not a telluric), these describe how well its tellurics match it
+##         helpmenu = wx.Menu()
+##         helpmenu.Append(wx.ID_ABOUT, "&About")
 
-		# Other
-		self.moon_angle = -1.0 # Angle between this target and the Moon
+##         menubar = wx.MenuBar()
+##         menubar.Append(filemenu, "&File")
+##         menubar.Append(helpmenu, "&Help")
+##         self.SetMenuBar(menubar)
+##         self.Show(True)
 
-		self.scheduled_id = "-1"      # ID in the telescope operator's catalogue.  Not filled in until object is scheduled
+##     def OnExit(self,e):
+##         self.Close(True)
 
-    # Prints out the details of all the information stored in the target structure
-	def details(self):
+##     def OnOpen(self,e):
+##         """ Open a file"""
+##         dlg = wx.FileDialog(self, "Choose a file", self.dirname, "", "*.*", wx.OPEN)
+##         if dlg.ShowModal() == wx.ID_OK:
+##              self.filename = dlg.GetFilename()
+##              self.dirname = dlg.GetDirectory()
+##              f = open(os.path.join(self.dirname, self.filename), 'r')
+##              self.control.SetValue(f.read())
+##              f.close()
+##         dlg.Destroy()
 
-		output = "\n  Details for source %s (object type = %s)\n" % ( self.name, self.label )
-		output += "  ****************************************************\n"
 
-		output += "  General Properties:"
-		output += "    Right Ascension = %f hrs\n" % ( self.ra )
-		output += "    Declination = %f degrees\n" % ( self.dec )
-		output += "    Angular distance from Moon (in degrees) = "
-		if self.moon_angle < 0.0:
-		    output += " unknown (use -M or --Moon to turn on Moon option)\n"
-		else:
-		    output += "%2.2f degrees\n" % (self.moon_angle)
-		output += "    Redshift = "
-		if self.z < 0.0:
-		    output += "unknown\n"
-		else:
-		    output += "%2.2f\n" % ( self.z )
-		output += "    Magnitude = "
-		if self.mag <= 0.0:
-		    output += "unknown\n"
-		else:
-		    output += "%2.2f (band = " % ( self.mag )
-		    if self.mag_band is None:
-		        output += "unknown)\n"
-		    else:
-		        output += "%s)\n" % ( self.mag_band )
-		output += "    Magnitude (2nd band) = "
-		if self.mag2 <= 0.0:
-		    output += "unknown\n"
-		else:
-		    output += "%2.2f (band = " % ( self.mag2 )
-		    if self.mag_band2 is None:
-		        output += "unknown)\n"
-		    else:
-		        output += "%s)\n" % ( self.mag_band2 )
-		output += "    Required exposure time = %3.2f secs\n" % ( self.exp )
+## class PyroApp(wx.App):
+##     def OnInit(self):
+##         frame = MainWindow(None, -1, "Hello World!")
+##         frame.Show(True)
+##         self.SetTopWindow(frame)
 
-		output += "  Airmass properties:\n"
-		output += "    Airmass used for rising/setting times = "
-		if self.real_am_used < 0.0:
-		    output += "unknown\n"
-		else:
-		    output += "%2.2f\n" % ( self.real_am_used )
-		output += "    Rising time = "
-		if self.real_am_rise < 0:
-		    output += "unknown\n"
-		else:
-		    output += "%d (hhmm)\n" % ( self.real_am_rise )
-		output += "    Setting time = "
-		if self.real_am_set < 0:
-		    output += "unknown\n"
-		else:
-		    output += "%d (hhmm)\n" % ( self.real_am_set )
+##         return True
 
-		output += "  Observation details (general):\n"
-		output += "    Start of night's observation = %d (hhmm)\n" % ( self.night_start )
-		output += "    End of night's observation = %d (hhmm)\n" % ( self.night_end )
 
-		output += "  Observation details (specific to target):\n"
-		output += "    Target's scheduling weight: %4.3f\n" % ( self.weight )
-		output += "    Is this target a priority (ie, input with -P or --Priority flag)? %s\n" % ( boolean2yesno( self.priority ) )
-		output += "    Is this target automatically excluded? %s (Reason: %s)\n" % ( boolean2yesno( self.exclude ), self.excl_reason )
-		output += "    Airmass rise time (modified by observation window) = %d (hhmm)\n" % ( self.am_rise )
-		output += "    Airmass set time (modified by observation window) = %d (hhmm)\n" % ( self.am_set )
-		output += "    Total time up within observation window = "
-		if self.am_vis==-1:
-		    output += "never up\n"
-		else:
-		    output += "%d\n" % ( self.am_vis )
-		output += "    Number of time slots set aside for telluric observation = %d\n" % ( self.tell_slots )
-		output += "    Scheduled observation start time = %d (hhmm after observation start)\n" % ( self.start_observation )
-		output += "    Scheduled observation end time = %d (hhmm after observation start)\n" % ( self.end_observation )
 
-		output += "  Properties of matched tellurics:\n"
-		output += "    Number of tellurics found for this source = %d\n" % ( self.num_tells )
-		if self.num_tells > 0:
-		    output += "    Information on best  matched tellurics (and comparison values):\n"
-		    #for tell_num in range(0,self.num_tells):
-		    #    output += self.telluric_catalog_entry(tell_num)
-		output += "    ****************************************************"
-		output += self.tell_details()
-		output += "    ****************************************************\n"
 
-		return output
 
-	def tell_details(self):
 
-		if self.num_tells==0:
-			output = "\n %s: Didn't try to find tellurics for this object.\n" % (self.name)
- 		else:
-			tcv = self.tell_comp_vals[0]
-			output = "\n  %s:  RA= %s, Dec= %s  airmass= %4.3f at lst %s\n" % (self.name, dechrs2hhmmss(self.ra,True), deg2degmmss(self.dec,True), tcv.src_am, dechrs2hhmmss(tcv.src_time, True))
-			output += "    Best telluric matches:\n"
-			for tell_num in range(0, len(self.tellurics)):
-				output += self.tell_details1(tell_num)
 
-		return output
+def convertTimeToDegrees(time):
+    """Convert a time/datetime object into decimal degrees"""
+    return time.hour*15.0 + time.minute/4.0 + time.second/(4.0*60.0)
 
-	def tell_details1(self, tell_num):
-		tell = self.tellurics[tell_num]
-		tcv = self.tell_comp_vals[tell_num]
-		output  = "      (%d): %s\n" % ( tell_num+1, tell.name )
-		ra = dechrs2hhmmss(tell.ra, True)
-		dec = deg2degmmss(tell.dec, True)
-		output += "          Mag= %3.2f " % ( tell.mag )
-		if tell.mag_band is not None:
-		    output += "(Band= %s)" % ( tell.mag_band )
-		else:
-		    output += "(Band = Unknown)"
-		output += "  RA= %s  Dec= %s  Anguler Offset= %2.2f deg\n" % (ra, dec, tcv.dphi)
-		output += "          This telluric: airmass = %4.3f at lst %s    airmass diff from source = %4.3f.  Match rating = %4.2f\n" % (tcv.tell_am, dechrs2hhmmss(tcv.tell_time, True), tcv.da, tcv.rating)
 
-		return output
-
-    # Return a string containing a line formatted for a Magellan telescope operator's catalog.  comment=Boolean: write a comment column?
-	def catalog_entry(self, comment):
-	    seconds = (self.ra % 1) * 3600.0
-	    ra = "%02d:%02d:%04.1f" % (int(math.floor(self.ra)), int(math.floor(seconds/60)), seconds % 60)
-
-	    if str(self.dec)[0] == "-":
-	        sign = "-"
-	    else:
-	        sign = "+"
-	    seconds = (abs(self.dec) % 1) * 3600.0
-	    dec = sign + "%02d:%02d:%04.1f" % (int(math.floor(abs(self.dec))), int(math.floor(seconds/60)), seconds % 60)
-
-	    entry = self.scheduled_id + "    "
-	    entry += str(self.name).ljust(25, " ")
-	    entry += ra + "    "
-	    entry += dec + "    "
-	    entry += "2000.0 0.0 0.0 -0.2 HRZ 00:00:00 00:00:00 2000.0 00:00:00 00:00:00 2000.0	"
-	    if comment == True:
-	        if self.z is None:
-	            z_str = "N/A"
-	        else:
-	            z_str = "%4.2f" % self.z
-	        comment = "%s;z=%s;weight=%5.3f;exp=%5.1f\n" % (self.label,z_str,self.weight,self.exp)
-	        entry += comment
-	    return entry
-
-	def telluric_catalog_entry(self, tell_num):
-
-		tcv = self.tell_comp_vals[tell_num]
-		entry = self.tellurics[tell_num].catalog_entry(False)
-		if self.tellurics[tell_num].mag_band2 is not None:
-			if self.tellurics[tell_num].mag2 is not None:
-				comment = "Tell;da=%4.2f;dphi=%4.2f;%s=%3.2f;%s=%3.2f;score=%4.2f\n" % (tcv.da, tcv.dphi, self.tellurics[tell_num].mag_band, self.tellurics[tell_num].mag, self.tellurics[tell_num].mag_band2, self.tellurics[tell_num].mag2, tcv.rating)
-			else:
-				comment = "Tell;da=%4.2f;dphi=%4.2f;%s=%3.2f;%s=?;score=%4.2f\n" % (tcv.da, tcv.dphi, self.tellurics[tell_num].mag_band, self.tellurics[tell_num].mag, self.tellurics[tell_num].mag_band2, tcv.rating)
-		else:
-			comment = "Tell;da=%4.2f;dphi=%4.2f;%s=%3.2f;score=%4.2f\n" % (tcv.da, tcv.dphi, self.tellurics[tell_num].mag_band, self.tellurics[tell_num].mag, tcv.rating)
-		entry += comment
-
-		return entry
+def convertDegreesToTime(degrees):
+    """Convert an angle into a time object"""
+    hours, min_sec = divmod(degrees, 15.0)
+    minutes, seconds = divmod(degrees, 0.25)
+    seconds = seconds * 240.0
+    return datetime.time(hour=hours, minutes=minutes, second=seconds)
 
 
 # Inputs True or False, and outputs 'yes' or 'no', respectively
@@ -368,7 +596,7 @@ def make0to24( dechrs ):
         dechrs += 24.0
     return dechrs
 
-def get_lst( ra, ha ):
+def getLSTFromRA( ra, ha ):
     return make0to24( ra+ha )
 
 # Converts decimal hours to a string of form hhmmss (or hh:mm:ss if colons==True)
@@ -403,46 +631,60 @@ def deg2degmmss( deg, colons ):
         return '%s%02d:%02d:%02d' % (sign, deg, m, s)
 
 # For a given object, calculate the times it is observable at an airmass equal to or better than a certain value
-def invert_airmass( airmass, tscope, src ):
+def invertAirmass( airmass, obs, target):
 
-    deg2rad = math.pi/180.0
+    #deg2rad = math.pi/180.0
     one_over_a = 1.0/airmass
-    dec = src.dec # src dec in decimal degrees
-    sin_dec = math.sin(dec*deg2rad)
-    cos_dec = math.cos(dec*deg2rad)
-    lat = tscope.lat # tscope latitude in decimal degrees
-    sin_lat = math.sin(lat*deg2rad)
-    cos_lat = math.cos(lat*deg2rad)
+    sin_dec = math.sin(target.coordinates.dec.radians)
+    cos_dec = math.cos(target.coordinates.dec.radians)
+    sin_lat = math.sin(obs.lat.radians)
+    cos_lat = math.cos(obs.lat.radians)
 
     cos_ha = (one_over_a - sin_dec*sin_lat)/( cos_dec*cos_lat )
     if( cos_ha < -1 or cos_ha > 1 ):
         # print 'WARNING: airmass of %f is unobtainable for source %s\n' % (airmass, src.name)
-        src.exclude = True
-        src.reason = "Bad Airmass"
-    ha1 = math.acos(cos_ha)*12.0/math.pi
-    ha2 = -1.0*ha1
+        target.exclude = True
+        target.excl_reason = "Bad Airmass"
+    #ha1 = math.acos(cos_ha)*12.0/math.pi
+    hour_angle1 = coordinates.angles.Angle(math.acos(cos_ha), unit="radian", bounds=(0, 360))
+    hour_angle2 = coordinates.angles.Angle(math.acos(cos_ha)*-1.0, unit="radian", bounds=(0, 360))
 
-    # Determine the src lst in decimal hours
-    ra = src.ra # src ra in decimal degrees
-    lst_min = get_lst(ra,ha2)
-    lst_max = get_lst(ra,ha1)
+    # Determine the observable LST in decimal hours
+    rise_angle = hour_angle1 + target.coordinates.ra
+    set_angle = hour_angle2 + target.coordinates.ra
+    rise_lst = sidereal.SiderealTime(rise_angle.hours)
+    set_lst = sidereal.SiderealTime(set_angle.hours)
+    am_rise = rise_lst.utc(target.night_start)
+    am_set = set_lst.utc(target.night_end)
+    am_rise = am_rise.replace(tzinfo=obs.timezone)
+    am_set = am_set.replace(tzinfo=obs.timezone)
+    print math.degrees(math.acos(cos_ha)), rise_lst, set_lst, am_rise, am_set
+    #lst_min = make0to24(src.ra + ha2)
+    #hours, minutes = divmod(lst_min, 1.0)
+    #rise_lst = datetime(hour=rise_angle.hms[0], minute=rise_angle[1], second=rise_angle[2], tzinfo=obs.sidereal)
+    #set_lst = datetime(hour=set_angle.hms[0], minute=set_angle[1], second=set_angle[2], tzinfo=obs.sidereal)
+                         
+   # lst_min = getLSTFromRA(ra,ha2)
+   # lst_max = getLSTFromRA(ra,ha1)
 
     # Determine the current time in decimal hours
-    curr_min = lst2curr( lst_min, tscope )
-    curr_max = lst2curr( lst_max, tscope )
+   # am_rise = rise_lst.astimezone(obs.timezone)
+   # am_set = set_lst.astimezone(obs.timezone)
+   # curr_min = lst2curr( lst_min, tscope )
+   # curr_max = lst2curr( lst_max, tscope )
 
     # Convert these to the form hhmmss
-    curr_min = dechrs2hhmmss( curr_min, False )
-    curr_max = dechrs2hhmmss( curr_max, False )
-
-    return ( curr_min, curr_max  )
+    #curr_min = dechrs2hhmmss( curr_min, False )
+    #curr_max = dechrs2hhmmss( curr_max, False )
+    return (am_rise, am_set)
+    #return ( curr_min, curr_max  )
 
 
 # Utils for tellurics
 
 # Calculates the position of a source on the celestial sphere at local sidereal time lst
-def get_spherical_vec( src, lst ):
-    return [ math.cos(h2r(get_ha(lst,src.ra)))*math.cos(d2r(src.dec)), math.sin(h2r(get_ha(lst,src.ra)))*math.cos(d2r(src.dec)), math.sin(d2r(src.dec))]
+def getSphericalVec( src, lst ):
+    return [ math.cos(h2r(getHourAngle(lst,src.ra)))*math.cos(d2r(src.dec)), math.sin(h2r(getHourAngle(lst,src.ra)))*math.cos(d2r(src.dec)), math.sin(d2r(src.dec))]
 
 # The quality of match rating for a telluric with airmass difference da and angular difference dphi
 def rate_tell(da,dphi):
@@ -471,13 +713,13 @@ def dist_weight( angle ):
 
 # Inputs two targets, and outputs the angular difference between the two on the sky
 def angle_between( src1, src2 ):
-    [r1,r2,r3] = get_spherical_vec( src1, 0.0 )
-    [s1,s2,s3] = get_spherical_vec( src2, 0.0 )
+    [r1,r2,r3] = getSphericalVec( src1, 0.0 )
+    [s1,s2,s3] = getSphericalVec( src2, 0.0 )
     return 180.0/math.pi*math.fabs(math.acos( r1*s1 + r2*s2 + r3*s3 ))
 
 # Inputs the local sidereal time and right ascension of an object, and outputs its hour angle
-def get_ha( lst, ra ):
-    return ( lst-ra )
+def getHourAngle( lst, ra ):
+    return convertTimeToDegrees(lst) - ra
 
 # Converts the input degrees to radians
 def d2r( deg ):
@@ -488,9 +730,9 @@ def h2r( hour ):
     return hour*math.pi/12.0
 
 # Inputs telescope location, a target (equipped with its position on the sky) and a local sidereal time, and outputs the airmass
-def get_airmass( src, site, lst ):
-    ha = get_ha( lst, src.ra )
-    cos_phi = math.cos(h2r(ha))*math.cos(d2r(src.dec))*math.cos(d2r(site.lat)) + math.sin(d2r(src.dec))*math.sin(d2r(site.lat))
+def getAirmass( src, obs, lst ):
+    ha = getHourAngle( lst, src.ra )
+    cos_phi = math.cos(h2r(ha))*math.cos(d2r(src.dec))*math.cos(d2r(obs.lat)) + math.sin(d2r(src.dec))*math.sin(d2r(obs.lat))
     return 1.0/cos_phi
 
 # Inputs an hour angle and two quantities "quant1" and "quant2", and outputs an airmass
@@ -507,7 +749,7 @@ def find_tellurics_1src( src, central_lst, airmass, all_tellurics, quant1_tells,
 
     # Calculate the airmasses and angular difference of all tellurics
     for index, tell in enumerate(all_tellurics):
-        airmass_tell =  get_airmass_from_quants( get_ha(lst,tell.ra), quant1_tells[index], quant2_tells[index] )
+        airmass_tell =  get_airmass_from_quants( getHourAngle(lst,tell.ra), quant1_tells[index], quant2_tells[index] )
         da = (airmass - airmass_tell)
         dphi = angle_between( tell, src )
         temp_comp = tell_comp_vals( index, src.name, central_lst, airmass, lst, airmass_tell, da, dphi )
@@ -585,7 +827,7 @@ def find_closest_tellurics( all_sources, telluric_filenames, site, pure_A0V_only
                 central_lst = obj_lsts[src_num]
 
             # Calculate the airmass of the source at its central scan time
-            airmass = get_airmass( src, site, central_lst )
+            airmass = getAirmass( src, site, central_lst )
             src.airmass = airmass
 
             # Determine the telluric's central scan time in lst
@@ -796,7 +1038,7 @@ def getTotalObsTime(exposure, granularity, tell_slots):
     return obstime
 
 # Calculate times the object is at a good enough airmass for observing
-def getAirmassRange(target, start_time, end_time, airmass, site, loud):
+def getAirmassRange(target, airmass, obs, loud):
 
     airmass_cut = 2.0 # max airmass cutoff: to help avoid an infinite loop for priority objects
     if airmass > airmass_cut:
@@ -805,76 +1047,90 @@ def getAirmassRange(target, start_time, end_time, airmass, site, loud):
         return
 
     # For the target in question, determine the rising and setting times relative to the input 'airmass'.
-    vis = invert_airmass(airmass, site, target)
+    am_rise, am_set = invertAirmass(airmass, obs, target)
 
-    old = 0
+    if am_rise < target.night_start:
+        target.am_rise_time = target.night_start
+    else:
+        target.am_rise_time = am_rise
 
-    if old==0:
-        am_rise = int(vis[0][0:4])
-        am_set = int(vis[1][0:4])
+    if am_set > target.night_end:
+        target.am_set_time = target.night_end
+    else:
+        target.am_set_time = am_set
 
-        # Save these values of the actual airmass rise and set times to the Target structure
-        target.real_am_rise = am_rise
-        target.real_am_set = am_set
-        target.real_am_used = airmass
-
-        # For the sake of the scheduler, we modify these values by imposing the restrictions of our observing window.  We'll do this and store the new values as target.am_rise and target.am_set
-
-        # Make sure that start_time is between 0000 and 2400, and end_time is greater than start_time (end_time is most likely greater than 2400)
-        if start_time >= 2400:
-            start1 = start_time - 2400
-        else:
-            start1 = start_time
-        if end_time <= start1:
-            end1 = end_time+2400
-        else:
-            end1 = end_time
-
-        # Determine the rising and setting times of the target, relative to the restricted observing time window
-        good_rise = intimerange(am_rise,start1,end1)
-        good_set = intimerange(am_set,start1,end1)
-        if good_rise and good_set:
-            target.am_rise = am_rise
-            target.am_set = am_set
-        elif good_rise:
-            target.am_rise = am_rise
-            target.am_set = end_time
-        elif good_set:
-            target.am_rise = start_time
-            target.am_set = am_set
-        else:
-            target.am_rise = target.am_set = end_time
-
-
-        #    print "name = %s, am_rise = %d, am_set = %d, start = %d, end = %d, final rise = %d, final_set = %d" % (target.name, int(vis[0][0:4]), int(vis[1][0:4]), start_time, end_time, target.am_rise, target.am_set)
-
-
-    if old==1:
-        target.am_rise = int(vis[0][0:4])
-        target.am_set = int(vis[1][0:4])
-
-        if(target.am_rise > end_time and target.am_rise < start_time):
-            if(target.am_set > end_time and target.am_set < start_time):
-                target.am_rise = target_am_set = end_time
-            else:
-                target.am_rise = start_time + 5
-        if(target.am_set > end_time and target.am_set < start_time):
-            target.am_set = end_time
-
-
-    target.am_vis = timeElapsed(target.am_set, start_time) - timeElapsed(target.am_rise, start_time) # Visibility in decimal number of minutes
-    #target.am_vis = (target.am_vis - target.am_vis % 60) * 100/60 + target.am_vis % 60  # Uncomment to give visibility range in hhmm
-    if target.am_vis == 0:  # Object never rises
+    target.am_vis = target.am_set_time - target.am_rise_time
+    if target.am_vis == 0: # Never rises during the observing window
         target.am_vis = -1
 
-    # If the object is absolute highest priority, we may need to bend the rules.  Check to make sure its visibile longer than its exposure time
-    if target.priority and (target.am_vis*60.0<target.exp):
-        airmass = airmass + 0.1
-        if loud.priority==True:
-            print "getAirmassRange(): extending max acceptable airmass for object %s to %2.2f b/c it\'s a priority" % (target.name, airmass)
-        getAirmassRange(target, start_time, end_time, airmass+0.1, site, loud)
-    target.airmass = airmass
-    #print "getAirmassRange:", target.am_rise, target.am_set, start_time, end_time
+    ## old = 0
+
+    ## if old==0:
+    ##     am_rise = int(vis[0][0:4])
+    ##     am_set = int(vis[1][0:4])
+
+    ##     # Save these values of the actual airmass rise and set times to the Target structure
+    ##     target.real_am_rise = am_rise
+    ##     target.real_am_set = am_set
+    ##     target.real_am_used = airmass
+
+    ##     # For the sake of the scheduler, we modify these values by imposing the restrictions of our observing window.  We'll do this and store the new values as target.am_rise and target.am_set
+
+    ##     # Make sure that start_time is between 0000 and 2400, and end_time is greater than start_time (end_time is most likely greater than 2400)
+    ##     if start_time >= 2400:
+    ##         start1 = start_time - 2400
+    ##     else:
+    ##         start1 = start_time
+    ##     if end_time <= start1:
+    ##         end1 = end_time+2400
+    ##     else:
+    ##         end1 = end_time
+
+    ##     # Determine the rising and setting times of the target, relative to the restricted observing time window
+    ##     good_rise = intimerange(am_rise,start1,end1)
+    ##     good_set = intimerange(am_set,start1,end1)
+    ##     if good_rise and good_set:
+    ##         target.am_rise = am_rise
+    ##         target.am_set = am_set
+    ##     elif good_rise:
+    ##         target.am_rise = am_rise
+    ##         target.am_set = end_time
+    ##     elif good_set:
+    ##         target.am_rise = start_time
+    ##         target.am_set = am_set
+    ##     else:
+    ##         target.am_rise = target.am_set = end_time
+
+
+    ##     #    print "name = %s, am_rise = %d, am_set = %d, start = %d, end = %d, final rise = %d, final_set = %d" % (target.name, int(vis[0][0:4]), int(vis[1][0:4]), start_time, end_time, target.am_rise, target.am_set)
+
+
+    ## if old==1:
+    ##     target.am_rise = int(vis[0][0:4])
+    ##     target.am_set = int(vis[1][0:4])
+
+    ##     if(target.am_rise > end_time and target.am_rise < start_time):
+    ##         if(target.am_set > end_time and target.am_set < start_time):
+    ##             target.am_rise = target_am_set = end_time
+    ##         else:
+    ##             target.am_rise = start_time + 5
+    ##     if(target.am_set > end_time and target.am_set < start_time):
+    ##         target.am_set = end_time
+
+
+    ## target.am_vis = timeElapsed(target.am_set, start_time) - timeElapsed(target.am_rise, start_time) # Visibility in decimal number of minutes
+    ## #target.am_vis = (target.am_vis - target.am_vis % 60) * 100/60 + target.am_vis % 60  # Uncomment to give visibility range in hhmm
+    ## if target.am_vis == 0:  # Object never rises
+    ##     target.am_vis = -1
+
+    ## # If the object is absolute highest priority, we may need to bend the rules.  Check to make sure its visibile longer than its exposure time
+    ## if target.priority and (target.am_vis*60.0<target.exp):
+    ##     airmass = airmass + 0.1
+    ##     if loud.priority==True:
+    ##         print "getAirmassRange(): extending max acceptable airmass for object %s to %2.2f b/c it\'s a priority" % (target.name, airmass)
+    ##     getAirmassRange(target, start_time, end_time, airmass+0.1, site, loud)
+    ## target.airmass = airmass
+    ## #print "getAirmassRange:", target.am_rise, target.am_set, start_time, end_time
 
 # Outputs True if the input time is between start time and end time when the two straddle midnight
 def intimerange( time, start_time, end_time ):
@@ -1018,9 +1274,9 @@ def get_marker_dict():
     return index_dict
 
 # Inputs the name of a target file (or an array of names) and its (their) format(s) (run usage() for more info on file formate), and outputs an initial list of targets
-def get_targets(targetfiles, priorities, seeing, Moon, loud, weight_opt):
+def getTargets(targetfiles, priorities, seeing, Moon, loud, weight_opt):
 
-    func_name = "  get_targets()"
+    func_name = "  getTargets()"
     print "%s: extracting targets from these input target files = " % (func_name), targetfiles
 
     targets = list()
@@ -1051,7 +1307,7 @@ def get_targets(targetfiles, priorities, seeing, Moon, loud, weight_opt):
     for index in range( len(targetfiles) ):
         targetfile = targetfiles[index]
         # Grab all targets from this target file
-        [ max1,  targs1 ] = analyze_srclist(targetfile, prilist, seeing, Moon, loud, weight_opt)
+        [ max1,  targs1 ] = analyzeSourceList(targetfile, prilist, seeing, Moon, loud, weight_opt)
         # Append new targets to the total list
         for target in targs1:
             targets.append(target)
@@ -1074,13 +1330,13 @@ def get_targets(targetfiles, priorities, seeing, Moon, loud, weight_opt):
 
 
 # Inputs the name of a target file (or an array of names) and its (their) format(s) (run usage() for more info on file formate), and outputs an initial list of targets
-def analyze_srclist(targetfile, prilist, seeing, Moon, loud, weight_opt):
+def analyzeSourceList(targetfile, prilist, seeing, Moon, loud, weight_opt):
 
-    func_name = "  analyze_srclist()"
+    func_name = "  analyzeSourceList()"
     print "%s: extracting targets from target file = " %(func_name), targetfile
 
     # set minimum exposure time
-    exp_min = 600.0
+    exp_min = 60.0
 
     # set the initial maximum scheduling weight
     weight_max = -9999999.9
@@ -1108,7 +1364,7 @@ def analyze_srclist(targetfile, prilist, seeing, Moon, loud, weight_opt):
 
     # Cycle through lines in file
     for line in obj_file:
-        print "Analyze_srclist:", line
+        print "AnalyzeSourceList:", line
         obj_info = line.split()
 
         if is_marker_line(obj_info): # check if this is a "marker line" (defines what columns are which).  is so, update the appropriate index
@@ -1169,17 +1425,21 @@ def analyze_srclist(targetfile, prilist, seeing, Moon, loud, weight_opt):
             if ra_dec_type != 2:
                 ra = read_dict(obj_info, index_dict, 'RA_COL', 's')
                 dec = read_dict(obj_info, index_dict, 'DEC_COL', 's')
-                if ra_dec_type == 0:  # given in discrete (ie, hh:mm:ss and deg:arcmin:arcsec) form
-                    radec = 'convert_ra_dec'
-                elif ra_dec_type == 1: # given in decimal form
-                    radec = 'radec_str2float'
+                coords = coordinates.ICRSCoordinates(ra=ra, dec=dec, unit=("hour", "degree"))
+                #if ra_dec_type == 0:  # given in discrete (ie, hh:mm:ss and deg:arcmin:arcsec) form
+                    #radec = 'convert_ra_dec'
+                    
+                #elif ra_dec_type == 1: # given in decimal form
+                    #radec = 'radec_str2float'
             else:
-                ra = "-1.0"
-                dec = "-1.0"
-                radec = 'get_ra_dec_from_SDSS_name'
+                coord_string = name.replace('SDSSJ', '')
+                coord_string = coord_string.replace('SDSS', '')
+                coord_string = coord_string[0:2] + ":" + coord_string[2:4] + ":" + coord_string[4:9] + " " + coord_string[9:12] + ":" + coord_string[12:14] + ":" + coord_string[14:16]
+                coords = coordinates.ICRSCoordinates(coord_string, unit=("hour", "degree"))
 
             # Add the target to the list
-            target =  ra_dec_funcs[radec]( Target(label, name, z, mag, ra, dec, weight, exposure) )
+            #target =  ra_dec_funcs[radec]( Target(label, name, z, mag, ra, dec, weight, exposure) )
+            target = Target(label, name, z, mag, coords, weight, exposure)
 
             target.mag_band = index_dict['MAG_BAND']
             target.mag_band2 = index_dict['MAG_BAND2']               
@@ -1195,9 +1455,13 @@ def analyze_srclist(targetfile, prilist, seeing, Moon, loud, weight_opt):
                     target.priority = True
                     pinds.append(len(targets))
 
-            # Finally, make sure this target is not too close to the Moon
-            min_moon_angle = 40.0
-            too_close_to_Moon(target, Moon, min_moon_angle, loud.Moon)
+            target.moon_angle = target.coordinates.separation(Moon.coordinates)
+            print "Angular distance from Moon:", target.moon_angle
+            min_moon_angle = coordinates.angles.Angle("40.0", unit="degree")
+            if target.moon_angle.degrees < min_moon_angle.degrees:
+                print "Warning! Target", target.name, "too close to Moon!"
+                target.exclude = True
+                target.excl_reason = "Too close to Moon."
                 
             targets.append(target)
 
@@ -1511,32 +1775,37 @@ def get_slot_props( target, start_time, granularity, tell_slots, schedule, loud 
 
     return [rise_time, set_time, slots_needed, slots_available]
 
-# Inputs the Gregorian day, month, and year ('D', 'M', and 'Y', respectively) and Universal Time ('UT') and outputs the Julian Day Number
+
 # Formula taken from http://scienceworld.wolfram.com/astronomy/JulianDate.html, and is correct for Gregorian calendar dates from 1901 to 2099
-def calc_Julian_day( Y, M, D,  UT ):
-    D = int(D)
-    Y = int(Y)
-    M = int(M)
-    return 367*Y - int(7*(Y+int((M+9)/12))/4) + int(275*M/9) + D + 1721013.5 + UT/24.0
+def getJulianDay(d):
+    """Take in a datetime object and return the Julian Day Number."""
+    return 367*d.year - int(d.year*(d.year+int((d.month+9)/12))/4) + int(275*d.month/9) + d.day + 1721013.5 + d.utcoffset().seconds/(60.0*60.0*24.0)
 
 # Inputs the UT year ('Y'), month ('M'), day ('D') and decimal hour ('UT'), as well as the site's longitude (in decimal hours, west is positive), and outputs the local sidereal time
 # Taken from http://aa.usno.navy.mil/faq/docs/GAST.html 
-def calc_lst( Y, M, D, UT, longitude_west ):
-
+def getLST(d, obs):
+    """Take in a datetime object and return a datetime object corresponding to the local sidereal time at the observatory"""
+    
     # Calculate some important intermediate quantities
-    jd0 = calc_Julian_day( Y, M, D, 0.0 )
-    jd = jd0 + UT/24.0
-    d = jd - 2451545.0
+    jd = getJulianDay(d)
+    #jd = jd0 + d.utcoffset()/(60.0*24.0)
+    d = jd - 2451545.0 # Days since J2000.0, including fractional days
     d0 = jd0 - 2451545.0
     t = d/36525.0
 
     # Calculate the Greenwich Mean Sidereal Time
-    gmst = 6.697374558 + 0.06570982441908*d0 + 1.00273790935*UT + 0.000026*t
-    gmst = make0to24( gmst )
+    #gmst = 6.697374558 + 0.06570982441908*d0 + 1.00273790935*(d.utcoffset()/60.0) + 0.000026*t
+    #gmst = make0to24( gmst )
+    GMST = 280.46061837 + 360.98564736629*d
 
     # Calculate the local sidereal time
-    lst =  make0to24(gmst - longitude_west)
-
+    #lst = make0to24(gmst - obs.long)
+    LST_deg = (GMST - obs.long) % 360.0
+    hours, min_sec = divmod(LST_deg, 15.0)
+    minutes, seconds = divmod(min_sec, 0.25)
+    seconds = seconds * 240.0
+    lst = datetime(hours, minutes, seconds, tzinfo=Timezone(d.utcoffset(), True))
+    #lst.replace(tzinfo=Timezone(d.utcoffset(), True))
     return lst
 
 # Inputs a local date and outputs the offset from local time in UT (Accurate until 2020).  Assumes day is Chilean (not UT), and uses the Daylight Savings schedule given on:
@@ -1585,10 +1854,12 @@ def calc_lst2curr( Y, M, D, UT, UT2curr, longitude ):
 def calc_UT2lst( Y, M, D, UT, longitude ):
     return  make0to24(calc_lst( Y, M, D, UT, longitude) - UT)
 
-def makeMoon( site, day, local_time, loud ):
+def makeMoon(obs, local_time, loud):
 
     # Formula taken from The Astronomical Almanac, 2009, D22: "Low-precision formulae for geocentric coordinates of the Moon"
-    jd = calc_Julian_day( day[0], day[1], day[2], local_time - site.UT2curr )
+    #jd = calc_Julian_day( day[0], day[1], day[2], local_time - site.UT2curr )
+    print local_time.isoformat()
+    jd = getJulianDay(local_time)
 
     # Calculate the number of Julian centuries since 2000
     t = (float(jd) - 2451545.0)/36525.0 # Number of Julian centuries since 2000
@@ -1610,28 +1881,36 @@ def makeMoon( site, day, local_time, loud ):
     z = r*n
 
     # Calculate the topocentric rectangular coordinates
-    phi1 = site.lat
-    lst = local_time - site.lst2curr
-    x1 = x - cos( d2r( phi1 ) )*cos( d2r( lst ) )
-    y1 = y - cos( d2r( phi1 ) )*sin( d2r( lst ) )
-    z1 = z - sin( d2r( phi1 ) )
+    #phi1 = site.lat
+    #lst = local_time - site.lst2curr
+    #x1 = x - cos( d2r( phi1 ) )*cos( d2r( lst ) )
+    #y1 = y - cos( d2r( phi1 ) )*sin( d2r( lst ) )
+    #z1 = z - sin( d2r( phi1 ) )
+    #lst = coordinates.angles.Angle(convertTimeToDegrees(local_time.astimezone(obs.sidereal)), unit="degree")
+    GMST = sidereal.SiderealTime.fromDatetime(local_time)
+    LST = coordinates.angles.Angle((GMST.lst(obs.long.radians)).hours, unit="hour")
+    print LST.hours
+    x1 = x - cos(obs.lat.radians)*cos(LST.radians)
+    y1 = y - cos(obs.lat.radians)*sin(LST.radians)
+    z1 = z - sin(obs.lat.radians)
     r1 = math.sqrt( x1*x1 + y1*y1 + z1*z1 )
 
     # Calculate the ra and dec
-    ra = math.atan2( y1, x1 )*12.0/math.pi
-    dec = math.asin( z1/r1 )*180/math.pi
-    if ra < 0.0:
-        ra += 24.0
+    moon_coords = coordinates.ICRSCoordinates(ra=math.atan2(y1,x1), dec=math.asin(z1/r1), unit=("radian", "radian"))
+    #ra = math.atan2( y1, x1 )*12.0/math.pi
+    #dec = math.asin( z1/r1 )*180/math.pi
+    #if ra < 0.0:
+    #    ra += 24.0
 
-    if loud.Moon==True:
-        print "makeMoon(): Moon's coordinates on %s determined to be approximately ra = %f, dec = %f" % ( str_date( day  ), ra, dec)
+    if loud.moon==True:
+        print "makeMoon(): Moon's coordinates on %s determined to be approximately ra = %f, dec = %f" % ( local_time.date.isoformat(), moon_coords.ra.degrees, moon_coords.dec.degrees)
 
 #    ra = 21.0 + 12.0/60.0 + 44.0/3600.0
 #    dec = -1.0*(12.0 + 49.0/60.0 + 3.0/3600.0)
     
 #    print "ra = %f, dec = %f" % (ra, dec)
 
-    Moon = Target('Moon', 'Moon', 0.0, 0.0, ra, dec, 0.0, 0.0)
+    Moon = Target('Moon', 'Moon', 0.0, 0.0, moon_coords, 0.0, 0.0)
 
     return Moon
 
@@ -1678,6 +1957,9 @@ def str_date( date ):
 
 def main(argv):
 
+    #main_window = PyroApp(0)
+    #main_window.MainLoop()
+
     try:
         opts, args = getopt.getopt(argv, "b:e:t:g:a:s:n:P:hcfMl:q:v:w:d:U:", ["start=", "end=", "targetlist=", "granularity=", "airmass=", "seeing=", "nights=", "Priority=", "help", "catalog", "tellurics=", "eaf", "majordome", "Moon", "loud=", "quiet=", "verbose=", "NoMoon", "weight=", "day=", "UToff=", "tmin=", "tmax=", "pureA0V="])
     except getopt.GetoptError:
@@ -1699,13 +1981,13 @@ def main(argv):
     priorities = None
     useMoon = True
     loud_objects = None
-    loud = Output_Level( False, False, False ) 
+    loud = OutputLevel( False, False, False ) 
     weight_opt = ""
     first_day = None
     UToffset = None
     make_catalog = False
-    start_time = 1900
-    end_time = 0700
+    start_time = "1900"
+    end_time = "0700"
     tell_min = 8.0
     tell_max = 11.0
     pure_A0V_only = 1 # if 1, then use only stars labeled as A0V (no A0V+'s, etc)
@@ -1783,10 +2065,10 @@ def main(argv):
 
     #check_required_opts(argv) # not required at this time...
 
-    if(start_time < 1200):   # We're probably after midnight
-        start_time += 2400
+    #if(start_time < 1200):   # We're probably after midnight
+    #    start_time += 2400
 
-    obs_length = timeElapsed(end_time, start_time)
+    #obs_length = timeElapsed(end_time, start_time)
 
     # Grab today's date (Gregorian calendar)
     if first_day is None:
@@ -1794,152 +2076,161 @@ def main(argv):
         utc = str(datetime.datetime.utcnow())
         first_day = [ int(today[0]), int(today[1]), int(today[2]) ]
 
-    # Get the important telescope properties
-    lco = tscope('LCO', UToffset, first_day)
+
+
+    obs = Observatory('LCO')
+    start = datetime.datetime(year=2013, month = 5, day = 13, hour = 19, minute=0, tzinfo = obs.timezone)
+    end = datetime.datetime(year=2013, month = 5, day = 14, hour = 7, minute=0, tzinfo = obs.timezone)
+
+    obs_length = end - start
 
     # If desired, create the Moon
     if useMoon == True:
-        Moon = makeMoon( lco, first_day, float( start_time - start_time % 100 ) /100.0 + float(start_time%100)/60.0, loud ) 
+        Moon = makeMoon(obs, start, loud)
     else:
         Moon = None
 
     # Read in the targets and initialize their structures
-    targets = get_targets( targetlist, priorities, seeing, Moon, loud, weight_opt )
+    targets = getTargets( targetlist, priorities, seeing, Moon, loud, weight_opt )
 
     # Do airmass calculations for all targets
     for target in targets:
-        target.night_start = start_time
-        target.night_end = end_time
-        getAirmassRange(target, start_time, end_time, airmass, lco, loud)
-        #print "airmass range: %s %04d %04d %04d" % (target.name, target.am_rise, target.am_set, target.am_vis)
-
-    for scheduling_night in range(1, nights+1):
-        day = first_day + [ 0, scheduling_night-1, 0 ]
-        print "%s:  Running scheduler for date %d-%d-%d, day %d of %d" % (prog_name, day[0], day[1], day[2], scheduling_night, nights)
-
-        # Update the offset between lst and local time
-        lco.lst2curr = calc_lst( day[0], day[1], day[2], 0.0, lco.long )
-
-        schedule = [None] * int(obs_length/granularity)
-
-        targets.sort(key=lambda x: x.weight, reverse=True)
-        if eaf:
-            targets.sort(key = lambda x: timeElapsed(x.am_rise, start_time))
-        
-        #for target in targets:
-        #    print "%s %04d %04d %04d" % (target.name, target.am_rise, target.am_set, target.am_vis)
-    #targets.sort(key=lambda x: float(x.exp)/60/x.am_vis, reverse = True)
-        conflicts = list()
-        scheduled = list()
-
-        if loud.scheduler:
-            print "Targets"
-            print "---------------------------------------------"
-
-        for target in targets:
-            if target.exclude == False: # Make sure target not automatically excluded (because of proximity to Moon, for example
-                if majordome:
-                    was_scheduled = scheduleTargetMAJORDOME(target, schedule, start_time, granularity, tell_slots, scheduled, conflicts, loud)
-                else:
-                    was_scheduled = scheduleTarget(target, schedule, start_time, granularity, tell_slots, scheduled, conflicts, loud)
-            else:
-                if loud.scheduler:
-                    print "%s excluded from schedule (reason = %s)" % (target.name, target.excl_reason)
-
-        if loud.scheduler:
-            for target in targets:
-                print "Name:", target.name, "\t\t\tWeight:", target.weight, "Range: %04d %04d" % (target.am_rise, target.am_set), "\tFlex:", 60*target.am_vis/target.exp, "\tExposure Time:", target.exp #"RA/DEC:", target.ra, target.dec
-
-                print "\nSuccessfully scheduled", len(scheduled), "of", len(targets), "targets."
-                print "Slack time:", schedule.count(None) * granularity, "minutes."
-
-                #print "Total path length observed:", reduce(lambda x, y: (x + (y.z - 2) if y.z != 0.0 else x), scheduled, 0.0)
-                #print "Total path length observed above z = 4.7:", reduce(lambda x, y: (x + (y.z - 4.7) if y.z != 0.0 else x), scheduled, 0.0)
-            print "\nCould not schedule these targets:"
-            for conflict in conflicts:
-                print conflict.name
-
-            print "\nScheduled these targets:"
-            for target in scheduled:
-                print target.name
-
-
-
-#        print "Schedule for night %d:" % scheduling_night
-#        time = start_time
-#        for slot in schedule:
-#            if slot is None:
-#                print time, ": FREE"
-#            else:
-#                print time, ":", slot.label, slot.name, slot.exp/60
-#            time += granularity
-#            if(time % 100 == 60):
-#                time -= 60
-#                time += 100
-
-                
-
-        num_tells = 5 # number of tells to output at the beginning and end of the scan for each source
-        tell_slots = 3 # number of time slots to devote to tellurics
-        # Find tellurics for ALL targets, whether they're scheduled or not
-        [ all_tells, out_tells, out_tcvs ] = find_closest_tellurics(targets, telluric_files, lco, pure_A0V_only, tell_min, tell_max, num_tells, tell_slots, Moon, None, None )
-
-        #for target in scheduled:
-        #    print "Telluric stars for %s: " % target.name
-        #    for tell in target.tellurics:
-        #        print "HIP" + tell.name
-
-        if make_catalog == True:
-            tscope_catalog = open( str_date(day) +  ".cat", "w")
-
-            # Print all sources (and their best tellurics) into the catalog
-            obj_no = 100
-            incr = 100
-            while( num_tells >= incr ):
-                incr += 10
-            for target in targets:
-                tscope_catalog.write("#\n")
-                target.scheduled_id = "%04d" % obj_no
-                tscope_catalog.write(target.catalog_entry(True))
-                obj_no_tell = obj_no
-                for tell_num in range(0,target.num_tells):
-                    obj_no_tell = obj_no_tell + 1
-                    target.tellurics[tell_num].scheduled_id = "%04d" % obj_no_tell
-                    tscope_catalog.write(target.telluric_catalog_entry(tell_num))
-                obj_no += incr
-
-            # Now cycle through and print all tellurics into the catalog
-            tscope_catalog.write("#\n#\n# Complete list of Tellurics\n#\n")
-            # Create a dummy source with all tellurics
-            dummy_target = Target('target', 'dummy', 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-            dummy_target.num_tells = len(all_tells)
-            dummy_target.tellurics = all_tells
-            dummy_target.tell_comp_vals = list()
-            for tell_num in range(0,dummy_target.num_tells):
-                dummy_target.tellurics[tell_num].scheduled_id = "%04d" % obj_no
-                dummy_target.tell_comp_vals.append(tell_comp_vals(-1, 'dummy', 0.0, 0.0, 0.0, 0.0, 1.0, 0.0))
-                tscope_catalog.write(dummy_target.telluric_catalog_entry(tell_num) )
-                obj_no = obj_no + 1
-
-
-        # Print the final schedule to screen
-        # print_schedule( start_time, granularity, schedule, scheduling_night )
-
-        # If desired, print out all of the details of a (some) source(s)
-        if loud_objects is not None:
-            for index, target in enumerate(targets):
-                for object in loud_objects:
-                    if target.name.find(object) != -1:
-                        print targets[index].details()
-
-
-
-        targets = conflicts
-
-
-
-
+        target.night_start = start
+        target.night_end = end
+        getAirmassRange(target, airmass, obs, loud)
+        print "Target %s rise/set (%s, %s) AM rise/set (%s, %s)" % (target.name, target.rise_time.isoformat(), target.set_time.isoformat(), target.am_rise_time.isoformat(), target.am_set_time.isoformat())
 
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+
+
+
+
+
+
+        #print "airmass range: %s %04d %04d %04d" % (target.name, target.am_rise, target.am_set, target.am_vis)
+
+##     for scheduling_night in range(1, nights+1):
+##         day = first_day + [ 0, scheduling_night-1, 0 ]
+##         print "%s:  Running scheduler for date %d-%d-%d, day %d of %d" % (prog_name, day[0], day[1], day[2], scheduling_night, nights)
+
+##         # Update the offset between lst and local time
+##         lco.lst2curr = calc_lst( day[0], day[1], day[2], 0.0, lco.long )
+
+##         schedule = [None] * int(obs_length/granularity)
+
+##         targets.sort(key=lambda x: x.weight, reverse=True)
+##         if eaf:
+##             targets.sort(key = lambda x: timeElapsed(x.am_rise, start_time))
+        
+##         #for target in targets:
+##         #    print "%s %04d %04d %04d" % (target.name, target.am_rise, target.am_set, target.am_vis)
+##     #targets.sort(key=lambda x: float(x.exp)/60/x.am_vis, reverse = True)
+##         conflicts = list()
+##         scheduled = list()
+
+##         if loud.scheduler:
+##             print "Targets"
+##             print "---------------------------------------------"
+
+##         for target in targets:
+##             if target.exclude == False: # Make sure target not automatically excluded (because of proximity to Moon, for example
+##                 if majordome:
+##                     was_scheduled = scheduleTargetMAJORDOME(target, schedule, start_time, granularity, tell_slots, scheduled, conflicts, loud)
+##                 else:
+##                     was_scheduled = scheduleTarget(target, schedule, start_time, granularity, tell_slots, scheduled, conflicts, loud)
+##             else:
+##                 if loud.scheduler:
+##                     print "%s excluded from schedule (reason = %s)" % (target.name, target.excl_reason)
+
+##         if loud.scheduler:
+##             for target in targets:
+##                 print "Name:", target.name, "\t\t\tWeight:", target.weight, "Range: %04d %04d" % (target.am_rise, target.am_set), "\tFlex:", 60*target.am_vis/target.exp, "\tExposure Time:", target.exp #"RA/DEC:", target.ra, target.dec
+
+##                 print "\nSuccessfully scheduled", len(scheduled), "of", len(targets), "targets."
+##                 print "Slack time:", schedule.count(None) * granularity, "minutes."
+
+##                 #print "Total path length observed:", reduce(lambda x, y: (x + (y.z - 2) if y.z != 0.0 else x), scheduled, 0.0)
+##                 #print "Total path length observed above z = 4.7:", reduce(lambda x, y: (x + (y.z - 4.7) if y.z != 0.0 else x), scheduled, 0.0)
+##             print "\nCould not schedule these targets:"
+##             for conflict in conflicts:
+##                 print conflict.name
+
+##             print "\nScheduled these targets:"
+##             for target in scheduled:
+##                 print target.name
+
+
+
+## #        print "Schedule for night %d:" % scheduling_night
+## #        time = start_time
+## #        for slot in schedule:
+## #            if slot is None:
+## #                print time, ": FREE"
+## #            else:
+## #                print time, ":", slot.label, slot.name, slot.exp/60
+## #            time += granularity
+## #            if(time % 100 == 60):
+## #                time -= 60
+## #                time += 100
+
+                
+
+##         num_tells = 5 # number of tells to output at the beginning and end of the scan for each source
+##         tell_slots = 3 # number of time slots to devote to tellurics
+##         # Find tellurics for ALL targets, whether they're scheduled or not
+##         [ all_tells, out_tells, out_tcvs ] = find_closest_tellurics(targets, telluric_files, lco, pure_A0V_only, tell_min, tell_max, num_tells, tell_slots, Moon, None, None )
+
+##         #for target in scheduled:
+##         #    print "Telluric stars for %s: " % target.name
+##         #    for tell in target.tellurics:
+##         #        print "HIP" + tell.name
+
+##         if make_catalog == True:
+##             tscope_catalog = open( str_date(day) +  ".cat", "w")
+
+##             # Print all sources (and their best tellurics) into the catalog
+##             obj_no = 100
+##             incr = 100
+##             while( num_tells >= incr ):
+##                 incr += 10
+##             for target in targets:
+##                 tscope_catalog.write("#\n")
+##                 target.scheduled_id = "%04d" % obj_no
+##                 tscope_catalog.write(target.catalog_entry(True))
+##                 obj_no_tell = obj_no
+##                 for tell_num in range(0,target.num_tells):
+##                     obj_no_tell = obj_no_tell + 1
+##                     target.tellurics[tell_num].scheduled_id = "%04d" % obj_no_tell
+##                     tscope_catalog.write(target.telluric_catalog_entry(tell_num))
+##                 obj_no += incr
+
+##             # Now cycle through and print all tellurics into the catalog
+##             tscope_catalog.write("#\n#\n# Complete list of Tellurics\n#\n")
+##             # Create a dummy source with all tellurics
+##             dummy_target = Target('target', 'dummy', 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+##             dummy_target.num_tells = len(all_tells)
+##             dummy_target.tellurics = all_tells
+##             dummy_target.tell_comp_vals = list()
+##             for tell_num in range(0,dummy_target.num_tells):
+##                 dummy_target.tellurics[tell_num].scheduled_id = "%04d" % obj_no
+##                 dummy_target.tell_comp_vals.append(tell_comp_vals(-1, 'dummy', 0.0, 0.0, 0.0, 0.0, 1.0, 0.0))
+##                 tscope_catalog.write(dummy_target.telluric_catalog_entry(tell_num) )
+##                 obj_no = obj_no + 1
+
+
+##         # Print the final schedule to screen
+##         # print_schedule( start_time, granularity, schedule, scheduling_night )
+
+##         # If desired, print out all of the details of a (some) source(s)
+##         if loud_objects is not None:
+##             for index, target in enumerate(targets):
+##                 for object in loud_objects:
+##                     if target.name.find(object) != -1:
+##                         print targets[index].details()
+
+
+
+##         targets = conflicts
+
